@@ -1,7 +1,8 @@
 # SAI Auth Microservice Makefile
-define load_env
-	@if [ -f ./.env ]; then set -a && . ./.env && set +a; fi &&
-endef
+ifneq (,$(wildcard ./.env))
+    include .env
+    export
+endif
 
 # Build configuration
 BINARY_NAME?=$(SERVICE_NAME)
