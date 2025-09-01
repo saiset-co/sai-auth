@@ -1,14 +1,24 @@
-services:
-  auth:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - 9080:9080
-    depends_on:
-      - auth-sai-storage-mongo
-    volumes:
-      - ./config.yml:/srv/config.yml
+version: '3.8'
 
-volumes:
-  auth_mongo_data: {}
+services:
+  sai-auth:
+    build:
+      context: ..
+      dockerfile: ./sai-auth/${DOCKERFILE}
+    container_name: sai-auth
+    ports:
+      - "${SERVER_EXTERNAL_PORT}:${SERVER_PORT}"
+    env_file:
+      - .env
+    depends_on: []
+    networks:
+      - sai-network
+    restart: unless-stopped
+    volumes:
+      - ./config.template.yml:/app/config.template.yml
+
+
+networks:
+  sai-network:
+    name: sai-network
+    driver: bridge

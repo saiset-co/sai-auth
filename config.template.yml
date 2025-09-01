@@ -1,0 +1,83 @@
+name: "sai-auth"
+version: "1.0.0"
+
+server:
+  http:
+    host: "${SERVER_HOST}"
+    port: ${SERVER_PORT}
+    read_timeout: ${SERVER_READ_TIMEOUT}
+    write_timeout: ${SERVER_WRITE_TIMEOUT}
+    idle_timeout: ${SERVER_IDLE_TIMEOUT}
+
+auth_providers:
+  sai-auth:
+    params:
+      auth_service_url: "${AUTH_SERVICE_URL}"
+  basic:
+    params:
+      username: "${BASIC_USER}"
+      password: "${BASIC_PASS}"
+
+sai-auth:
+  access_token_ttl: "${ACCESS_TOKEN_TTL}"
+  refresh_token_ttl: "${REFRESH_TOKEN_TTL}"
+  bcrypt_cost: ${BCRYPT_COST}
+  secret_key: "${SECRET_KEY}"
+  super_user:
+    allowed_ips:
+      - "${SUPER_USER_IP_1}"
+      - "${SUPER_USER_IP_2}"
+
+
+clients:
+  enabled: ${CLIENTS_ENABLED}
+  services:
+    storage:
+      url: "${STORAGE_URL}"
+      auth:
+        provider: "${STORAGE_AUTH_PROVIDER}"
+        payload:
+          username: "${STORAGE_USERNAME}"
+          password: "${STORAGE_PASSWORD}"
+
+logger:
+  level: "${LOG_LEVEL}"
+  format: "${LOG_FORMAT}"
+  output: "${LOG_OUTPUT}"
+
+middlewares:
+   enabled: ${MIDDLEWARES_ENABLED}
+   cors:
+      enabled: ${CORS_ENABLED}
+      weight: 10
+      params:
+        AllowedOrigins: ${CORS_ALLOWED_ORIGINS}
+        AllowedMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+        AllowedHeaders: ["Content-Type", "Authorization", "X-API-Key", "X-Request-ID"]
+        MaxAge: ${CORS_MAX_AGE}
+   logging:
+      enabled: ${REQUEST_LOGGING_ENABLED}
+      weight: 20
+      params:
+        log_level: "${REQUEST_LOG_LEVEL}"
+        log_headers: ${REQUEST_LOG_HEADERS}
+        log_body: ${REQUEST_LOG_BODY}
+   recovery:
+      enabled: ${RECOVERY_ENABLED}
+      weight: 5
+      params:
+        stack_trace: ${RECOVERY_STACK_TRACE}
+   auth:
+      enabled: ${AUTH_ENABLED}
+      params:
+        provider: ${AUTH_PROVIDER}
+      weight: 70
+   rate_limit_user:
+      enabled: ${RATELIMIT_ENABLED}
+      weight: 80
+
+health:
+  enabled: ${HEALTH_ENABLED}
+
+docs:
+  enabled: ${DOCS_ENABLED}

@@ -1,22 +1,38 @@
-# Build stage
-FROM golang as BUILD
+FROM golang:1.24-alpine AS builder
 
-WORKDIR /src/
+RUN apk add --no-cache git ca-certificates tzdata gcc musl-dev
 
-COPY ./ /src/
+WORKDIR /build
 
-RUN go build -o auth-service-bin -buildvcs=false
+COPY go.mod go.sum ./
 
-FROM ubuntu
+RUN go mod download
 
-WORKDIR /srv
+COPY . .
 
-# Copy binary from build stage
-COPY --from=BUILD /src/ /srv/
+RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build \
+    -ldflags='-w -s -extldflags "-static"' \
+    -a -installsuffix cgo \
+    -o sai-auth \
+    ./cmd/main.go
 
-RUN chmod +x /srv/auth-service-bin
+FROM alpine:latest
 
-# Set command to run your binary
-CMD /srv/auth-service-bin start
+RUN apk --no-cache add ca-certificates tzdata gettext
 
-EXPOSE 9080
+RUN addgroup -g 1001 -S appgroup && adduser -u 1001 -S appuser -G appgroup
+
+WORKDIR /app
+
+COPY --from=builder /build/sai-auth .
+COPY --from=builder /build/scripts/docker-entrypoint.sh /usr/local/bin/
+
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+RUN chown -R appuser:appgroup /app
+
+USER appuser
+
+EXPOSE 8080
+
+ENTRYPOINT ["docker-entrypoint.sh"]
+CMD ["./sai-auth"]
