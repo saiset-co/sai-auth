@@ -62,7 +62,7 @@ func (r *MongoTokenRepository) GetByAccessToken(ctx *saiTypes.RequestCtx, access
 	token := &result.Data[0]
 
 	if time.Now().UnixNano() > token.ExpiresAt {
-		r.Delete(ctx, token.ID)
+		r.Delete(ctx, token.InternalID)
 		return nil, fmt.Errorf("token expired")
 	}
 
@@ -100,7 +100,7 @@ func (r *MongoTokenRepository) GetByRefreshToken(ctx *saiTypes.RequestCtx, refre
 	token := &result.Data[0]
 
 	if time.Now().UnixNano() > token.RefreshExpiresAt {
-		r.Delete(ctx, token.ID)
+		r.Delete(ctx, token.InternalID)
 		return nil, fmt.Errorf("refresh token expired")
 	}
 
@@ -141,7 +141,7 @@ func (r *MongoTokenRepository) GetByUserID(ctx *saiTypes.RequestCtx, userID stri
 
 func (r *MongoTokenRepository) Update(ctx *saiTypes.RequestCtx, token *models.Token) error {
 	filter := map[string]interface{}{
-		"internal_id": token.ID,
+		"internal_id": token.InternalID,
 	}
 
 	updateData := map[string]interface{}{

@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   sai-auth:
     build:
@@ -15,7 +13,6 @@ services:
     restart: unless-stopped
     volumes:
       - ./config.template.yml:/app/config.template.yml
-
 
 networks:
   sai-network:

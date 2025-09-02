@@ -1,15 +1,15 @@
 package models
 
 type Token struct {
-	ID                  string               `json:"id" redis:"id"`
+	InternalID          string               `json:"internal_id" redis:"internal_id"`
 	UserID              string               `json:"user_id" redis:"user_id"`
 	AccessToken         string               `json:"access_token" redis:"access_token"`
 	RefreshToken        string               `json:"refresh_token" redis:"refresh_token"`
 	ExpiresAt           int64                `json:"expires_at" redis:"expires_at"`
 	RefreshExpiresAt    int64                `json:"refresh_expires_at" redis:"refresh_expires_at"`
 	CompiledPermissions []CompiledPermission `json:"compiled_permissions" redis:"compiled_permissions"`
-	CreatedAt           int64                `json:"created_at" redis:"created_at"`
-	UpdatedAt           int64                `json:"updated_at" redis:"updated_at"`
+	CreatedAt           int64                `json:"cr_time" redis:"cr_time"`
+	UpdatedAt           int64                `json:"ch_time" redis:"ch_time"`
 }
 
 type TokenResponse struct {
