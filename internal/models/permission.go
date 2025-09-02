@@ -24,11 +24,11 @@ type Permission struct {
 }
 
 type CompiledPermission struct {
-	Microservice     string            `json:"microservice"`
-	Method           string            `json:"method"`
-	Path             string            `json:"path"`
-	Rates            []Rate            `json:"rates"`
-	RequiredParams   map[string]Params `json:"required_params"`
-	RestrictedParams map[string]Params `json:"restricted_params"`
-	InheritedFrom    []string          `json:"inherited_from,omitempty"`
+	Microservice     string   `json:"microservice"`
+	Method           string   `json:"method"`
+	Path             string   `json:"path"`
+	Rates            []Rate   `json:"rates"`
+	RequiredParams   []Params `json:"required_params"`
+	RestrictedParams []Params `json:"restricted_params"`
+	InheritedFrom    []string `json:"inherited_from,omitempty"`
 }

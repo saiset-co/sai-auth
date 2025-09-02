@@ -95,19 +95,19 @@ func (s *PermissionService) compilePermission(permission *models.Permission, rol
 		Method:           permission.Method,
 		Path:             permission.Path,
 		Rates:            permission.Rates,
-		RequiredParams:   make(map[string]models.Params),
-		RestrictedParams: make(map[string]models.Params),
+		RequiredParams:   make([]models.Params, 0, len(permission.RequiredParams)),
+		RestrictedParams: make([]models.Params, 0, len(permission.RestrictedParams)),
 		InheritedFrom:    []string{roleID},
 	}
 
 	for _, param := range permission.RequiredParams {
 		processedParam := s.processPlaceholders(param, user)
-		compiled.RequiredParams[param.Param] = processedParam
+		compiled.RequiredParams = append(compiled.RequiredParams, processedParam)
 	}
 
 	for _, param := range permission.RestrictedParams {
 		processedParam := s.processPlaceholders(param, user)
-		compiled.RestrictedParams[param.Param] = processedParam
+		compiled.RestrictedParams = append(compiled.RestrictedParams, processedParam)
 	}
 
 	return compiled
@@ -120,19 +120,31 @@ func (s *PermissionService) mergePermissions(existing *models.CompiledPermission
 
 	for _, param := range newPerm.RequiredParams {
 		processedParam := s.processPlaceholders(param, user)
-		if existingParam, exists := existing.RequiredParams[param.Param]; exists {
-			existing.RequiredParams[param.Param] = s.mergeParams(existingParam, processedParam)
-		} else {
-			existing.RequiredParams[param.Param] = processedParam
+		found := false
+		for i, existingParam := range existing.RequiredParams {
+			if existingParam.Param == param.Param {
+				existing.RequiredParams[i] = s.mergeParams(existingParam, processedParam)
+				found = true
+				break
+			}
+		}
+		if !found {
+			existing.RequiredParams = append(existing.RequiredParams, processedParam)
 		}
 	}
 
 	for _, param := range newPerm.RestrictedParams {
 		processedParam := s.processPlaceholders(param, user)
-		if existingParam, exists := existing.RestrictedParams[param.Param]; exists {
-			existing.RestrictedParams[param.Param] = s.mergeParams(existingParam, processedParam)
-		} else {
-			existing.RestrictedParams[param.Param] = processedParam
+		found := false
+		for i, existingParam := range existing.RestrictedParams {
+			if existingParam.Param == param.Param {
+				existing.RestrictedParams[i] = s.mergeParams(existingParam, processedParam)
+				found = true
+				break
+			}
+		}
+		if !found {
+			existing.RestrictedParams = append(existing.RestrictedParams, processedParam)
 		}
 	}
 }
@@ -281,14 +293,14 @@ func (s *PermissionService) CheckPermission(ctx *saiTypes.RequestCtx, permission
 		}, nil
 	}
 
-	for param, restriction := range matchedPermission.RestrictedParams {
-		if value, exists := requestParams[param]; exists {
+	for _, restriction := range matchedPermission.RestrictedParams {
+		if value, exists := requestParams[restriction.Param]; exists {
 			if s.isRestricted(value, restriction) {
 				return &models.VerifyResponse{
 					Allowed: false,
-					Reason:  fmt.Sprintf("Access denied to %s '%v'", param, value),
+					Reason:  fmt.Sprintf("Access denied to %s '%v'", restriction.Param, value),
 					ViolatedRule: &models.ViolatedRule{
-						Param:          param,
+						Param:          restriction.Param,
 						AttemptedValue: fmt.Sprintf("%v", value),
 						RuleType:       "restricted_params",
 					},
@@ -302,14 +314,14 @@ func (s *PermissionService) CheckPermission(ctx *saiTypes.RequestCtx, permission
 		modifiedParams[key] = value
 	}
 
-	for param, requirement := range matchedPermission.RequiredParams {
-		if value, exists := requestParams[param]; exists {
+	for _, requirement := range matchedPermission.RequiredParams {
+		if value, exists := requestParams[requirement.Param]; exists {
 			if !s.satisfiesRequirement(value, requirement) {
 				return &models.VerifyResponse{
 					Allowed: false,
-					Reason:  fmt.Sprintf("Parameter %s does not satisfy requirements", param),
+					Reason:  fmt.Sprintf("Parameter %s does not satisfy requirements", requirement.Param),
 					ViolatedRule: &models.ViolatedRule{
-						Param:          param,
+						Param:          requirement.Param,
 						AttemptedValue: fmt.Sprintf("%v", value),
 						RuleType:       "required_params",
 					},
@@ -317,7 +329,7 @@ func (s *PermissionService) CheckPermission(ctx *saiTypes.RequestCtx, permission
 			}
 		} else {
 			if requirement.Value != "" && requirement.Value != "*" {
-				modifiedParams[param] = requirement.Value
+				modifiedParams[requirement.Param] = requirement.Value
 			}
 		}
 	}
