@@ -2,8 +2,6 @@ package service
 
 import (
 	"fmt"
-	"time"
-
 	"github.com/google/uuid"
 
 	"github.com/saiset-co/sai-auth/internal/models"
@@ -295,7 +293,6 @@ func (s *UserService) recompileUserPermissions(ctx *saiTypes.RequestCtx, filter 
 			}
 
 			token.CompiledPermissions = permissions
-			token.UpdatedAt = time.Now().UnixNano()
 
 			s.tokenRepo.Update(ctx, token)
 		}

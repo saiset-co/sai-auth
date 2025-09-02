@@ -43,10 +43,16 @@ func (p *SaiAuthProvider) ApplyToIncomingRequest(ctx *types.RequestCtx) error {
 
 	allowed, userID, modifiedParams, err := p.verifyWithAuthService(requestData)
 	if err != nil {
+		sai.Logger().Error("SaiAuthProvider: Verification failed", zap.Error(err))
 		return err
 	}
 
 	if !allowed {
+		sai.Logger().Warn("SaiAuthProvider: Access denied",
+			zap.String("microservice", p.name),
+			zap.String("method", string(ctx.Method())),
+			zap.String("path", string(ctx.Path())),
+			zap.Any("request_params", requestData["request_params"]))
 		return errors.New("access denied")
 	}
 

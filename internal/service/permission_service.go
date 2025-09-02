@@ -294,7 +294,7 @@ func (s *PermissionService) CheckPermission(ctx *saiTypes.RequestCtx, permission
 	}
 
 	for _, restriction := range matchedPermission.RestrictedParams {
-		if value, exists := requestParams[restriction.Param]; exists {
+		if value := s.getNestedValue(requestParams, restriction.Param); value != nil {
 			if s.isRestricted(value, restriction) {
 				return &models.VerifyResponse{
 					Allowed: false,
@@ -315,7 +315,8 @@ func (s *PermissionService) CheckPermission(ctx *saiTypes.RequestCtx, permission
 	}
 
 	for _, requirement := range matchedPermission.RequiredParams {
-		if value, exists := requestParams[requirement.Param]; exists {
+		value := s.getNestedValue(requestParams, requirement.Param)
+		if value != nil {
 			if !s.satisfiesRequirement(value, requirement) {
 				return &models.VerifyResponse{
 					Allowed: false,
@@ -328,9 +329,15 @@ func (s *PermissionService) CheckPermission(ctx *saiTypes.RequestCtx, permission
 				}, nil
 			}
 		} else {
-			if requirement.Value != "" && requirement.Value != "*" {
-				modifiedParams[requirement.Param] = requirement.Value
-			}
+			return &models.VerifyResponse{
+				Allowed: false,
+				Reason:  fmt.Sprintf("Parameter %s not found", requirement.Param),
+				ViolatedRule: &models.ViolatedRule{
+					Param:          requirement.Param,
+					AttemptedValue: "not found",
+					RuleType:       "required_params",
+				},
+			}, nil
 		}
 	}
 
@@ -340,7 +347,139 @@ func (s *PermissionService) CheckPermission(ctx *saiTypes.RequestCtx, permission
 	}, nil
 }
 
+func (s *PermissionService) getNestedValue(data map[string]interface{}, path string) interface{} {
+	if !strings.Contains(path, ".") {
+		return data[path]
+	}
+
+	parts := strings.Split(path, ".")
+
+	for i, part := range parts {
+		if part == "$" && i > 0 && i < len(parts)-1 {
+			arrayKey := parts[i-1]
+			fieldKey := parts[i+1]
+
+			arrValue, exists := data[arrayKey]
+			if !exists {
+				return nil
+			}
+
+			arr, ok := arrValue.([]interface{})
+			if !ok {
+				return nil
+			}
+
+			var values []interface{}
+			for _, item := range arr {
+				if itemMap, ok := item.(map[string]interface{}); ok {
+					if value, exists := itemMap[fieldKey]; exists {
+						values = append(values, value)
+					} else {
+						return nil
+					}
+				}
+			}
+
+			return values
+		}
+	}
+
+	current := data
+	for i, part := range parts {
+		value, exists := current[part]
+		if !exists {
+			return nil
+		}
+
+		if i == len(parts)-1 {
+			return value
+		}
+
+		if nextMap, ok := value.(map[string]interface{}); ok {
+			current = nextMap
+		} else {
+			return nil
+		}
+	}
+
+	return nil
+}
+
+func (s *PermissionService) satisfiesRequirement(value interface{}, requirement models.Params) bool {
+	if requirement.Value == "*" {
+		return true
+	}
+
+	if values, ok := value.([]interface{}); ok {
+		return s.validateAllValues(values, requirement)
+	}
+
+	return s.validateSingleValue(value, requirement)
+}
+
+func (s *PermissionService) validateAllValues(values []interface{}, requirement models.Params) bool {
+	for _, v := range values {
+		if !s.validateSingleValue(v, requirement) {
+			return false
+		}
+	}
+	return true
+}
+
+func (s *PermissionService) validateSingleValue(value interface{}, requirement models.Params) bool {
+	valueStr := fmt.Sprintf("%v", value)
+
+	if requirement.Value != "" {
+		return valueStr == requirement.Value
+	}
+
+	if len(requirement.AnyValue) > 0 {
+		for _, allowed := range requirement.AnyValue {
+			if valueStr == allowed {
+				return true
+			}
+		}
+		return false
+	}
+
+	if len(requirement.AllValues) > 0 {
+		if arr, ok := value.([]interface{}); ok {
+			return s.checkAllValuesPresent(arr, requirement.AllValues)
+		}
+		return false
+	}
+
+	return true
+}
+
+func (s *PermissionService) checkAllValuesPresent(arr []interface{}, required []string) bool {
+	foundMap := make(map[string]bool)
+	for _, v := range arr {
+		foundMap[fmt.Sprintf("%v", v)] = true
+	}
+
+	for _, req := range required {
+		if !foundMap[req] {
+			return false
+		}
+	}
+	return true
+}
+
 func (s *PermissionService) isRestricted(value interface{}, restriction models.Params) bool {
+	if values, ok := value.([]interface{}); ok {
+		for _, v := range values {
+			if s.isValueRestricted(v, restriction) {
+				return true
+			}
+		}
+		return false
+	}
+
+	return s.isValueRestricted(value, restriction)
+}
+
+func (s *PermissionService) isValueRestricted(value interface{}, restriction models.Params) bool {
 	valueStr := fmt.Sprintf("%v", value)
 
 	if restriction.Value != "" {
@@ -348,23 +487,21 @@ func (s *PermissionService) isRestricted(value interface{}, restriction models.P
 	}
 
 	if len(restriction.AnyValue) > 0 {
-		for _, restrictedValue := range restriction.AnyValue {
-			if valueStr == restrictedValue {
+		for _, restricted := range restriction.AnyValue {
+			if valueStr == restricted {
 				return true
 			}
 		}
 	}
 
 	if len(restriction.AllValues) > 0 {
-		if valueSlice, ok := value.([]interface{}); ok {
-			restrictedMap := make(map[string]bool)
-			for _, rv := range restriction.AllValues {
-				restrictedMap[rv] = true
-			}
-
-			for _, v := range valueSlice {
-				if restrictedMap[fmt.Sprintf("%v", v)] {
-					return true
+		if arr, ok := value.([]interface{}); ok {
+			for _, v := range arr {
+				vStr := fmt.Sprintf("%v", v)
+				for _, restricted := range restriction.AllValues {
+					if vStr == restricted {
+						return true
+					}
 				}
 			}
 		}
@@ -373,69 +510,23 @@ func (s *PermissionService) isRestricted(value interface{}, restriction models.P
 	return false
 }
 
-func (s *PermissionService) satisfiesRequirement(value interface{}, requirement models.Params) bool {
-	if requirement.Value == "*" {
-		return true
-	}
-
-	if requirement.Value != "" {
-		return fmt.Sprintf("%v", value) == requirement.Value
-	}
-
-	if len(requirement.AnyValue) > 0 {
-		valueStr := fmt.Sprintf("%v", value)
-		for _, allowedValue := range requirement.AnyValue {
-			if valueStr == allowedValue {
-				return true
-			}
-		}
-		return false
-	}
-
-	if len(requirement.AllValues) > 0 {
-		if valueSlice, ok := value.([]interface{}); ok {
-			requiredMap := make(map[string]bool)
-			for _, rv := range requirement.AllValues {
-				requiredMap[rv] = true
-			}
-
-			for _, rv := range requirement.AllValues {
-				found := false
-				for _, v := range valueSlice {
-					if fmt.Sprintf("%v", v) == rv {
-						found = true
-						break
-					}
-				}
-				if !found {
-					return false
-				}
-			}
-			return true
-		}
-		return false
-	}
-
-	return true
-}
-
 func (s *PermissionService) matchPath(permissionPath, requestPath string) bool {
 	// Exact match
 	if permissionPath == requestPath {
 		return true
 	}
-	
+
 	// Wildcard match - /api/v1/* matches /api/v1/, /api/v1/documents, etc.
 	if strings.HasSuffix(permissionPath, "/*") {
 		prefix := strings.TrimSuffix(permissionPath, "/*")
 		return strings.HasPrefix(requestPath, prefix)
 	}
-	
+
 	// Wildcard match - /api/v1* matches /api/v1, /api/v1/, /api/v1/documents, etc.
 	if strings.HasSuffix(permissionPath, "*") {
 		prefix := strings.TrimSuffix(permissionPath, "*")
 		return strings.HasPrefix(requestPath, prefix)
 	}
-	
+
 	return false
 }

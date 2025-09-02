@@ -107,7 +107,7 @@ func (s *AuthService) RefreshToken(ctx *saiTypes.RequestCtx, req *models.Refresh
 	}
 
 	if !user.IsActive {
-		s.tokenRepo.Delete(ctx, token.ID)
+		s.tokenRepo.Delete(ctx, token.InternalID)
 		return nil, fmt.Errorf("user account is inactive")
 	}
 
@@ -121,7 +121,7 @@ func (s *AuthService) RefreshToken(ctx *saiTypes.RequestCtx, req *models.Refresh
 		return nil, fmt.Errorf("failed to generate token: %w", err)
 	}
 
-	s.tokenRepo.Delete(ctx, token.ID)
+	s.tokenRepo.Delete(ctx, token.InternalID)
 
 	err = s.tokenRepo.Store(ctx, newToken)
 	if err != nil {
@@ -141,7 +141,7 @@ func (s *AuthService) Logout(ctx *saiTypes.RequestCtx, accessToken string) error
 		return nil
 	}
 
-	return s.tokenRepo.Delete(ctx, token.ID)
+	return s.tokenRepo.Delete(ctx, token.InternalID)
 }
 
 func (s *AuthService) GetUserInfo(ctx *saiTypes.RequestCtx, accessToken string) (*models.UserInfoResponse, error) {
@@ -273,11 +273,6 @@ func (s *AuthService) TestPermissions(ctx *saiTypes.RequestCtx, req *models.Test
 }
 
 func (s *AuthService) generateToken(userID string, permissions []models.CompiledPermission) (*models.Token, error) {
-	tokenID, err := s.generateRandomString(32)
-	if err != nil {
-		return nil, err
-	}
-
 	accessToken, err := s.generateRandomString(64)
 	if err != nil {
 		return nil, err
@@ -291,15 +286,12 @@ func (s *AuthService) generateToken(userID string, permissions []models.Compiled
 	now := time.Now()
 
 	return &models.Token{
-		ID:                  tokenID,
 		UserID:              userID,
 		AccessToken:         accessToken,
 		RefreshToken:        refreshToken,
 		ExpiresAt:           now.Add(s.config.AccessTokenTTL).UnixNano(),
 		RefreshExpiresAt:    now.Add(s.config.RefreshTokenTTL).UnixNano(),
 		CompiledPermissions: permissions,
-		CreatedAt:           now.UnixNano(),
-		UpdatedAt:           now.UnixNano(),
 	}, nil
 }
 

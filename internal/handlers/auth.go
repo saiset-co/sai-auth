@@ -5,9 +5,11 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/valyala/fasthttp"
+	"go.uber.org/zap"
 
 	"github.com/saiset-co/sai-auth/internal/models"
 	"github.com/saiset-co/sai-auth/internal/service"
+	"github.com/saiset-co/sai-service/sai"
 	saiTypes "github.com/saiset-co/sai-service/types"
 )
 
@@ -109,11 +111,18 @@ func (h *AuthHandler) VerifyToken(ctx *saiTypes.RequestCtx) {
 
 	response, err := h.authService.VerifyToken(ctx, &req)
 	if err != nil {
+		sai.Logger().Error("Auth verify error", zap.Error(err))
 		ctx.Error(err, fasthttp.StatusInternalServerError)
 		return
 	}
 
 	if !response.Allowed {
+		sai.Logger().Warn("Auth verify denied",
+			zap.String("microservice", req.Microservice),
+			zap.String("method", req.Method),
+			zap.String("path", req.Path),
+			zap.Any("request_params", req.RequestParams),
+			zap.String("reason", response.Reason))
 		ctx.Error(errors.New("Not allowed"), fasthttp.StatusForbidden)
 		return
 	}
