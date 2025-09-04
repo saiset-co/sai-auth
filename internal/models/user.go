@@ -24,6 +24,7 @@ type CreateUserRequest struct {
 type LoginRequest struct {
 	User     string `json:"user" validate:"required"`
 	Password string `json:"password" validate:"required"`
+	Renew    bool   `json:"renew,omitempty"`
 }
 
 type RefreshTokenRequest struct {
