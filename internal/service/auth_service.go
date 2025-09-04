@@ -68,8 +68,8 @@ func (s *AuthService) Login(ctx *saiTypes.RequestCtx, req *models.LoginRequest) 
 			existingToken.CompiledPermissions = permissions
 		}
 		
-		existingToken.ExpiresAt = time.Now().Add(time.Hour).UnixNano()
-		existingToken.RefreshExpiresAt = time.Now().Add(24 * time.Hour).UnixNano()
+		existingToken.ExpiresAt = time.Now().Add(s.config.AccessTokenTTL).UnixNano()
+		existingToken.RefreshExpiresAt = time.Now().Add(s.config.RefreshTokenTTL).UnixNano()
 		err = s.tokenRepo.Update(ctx, existingToken)
 		if err != nil {
 			return nil, fmt.Errorf("failed to update token: %w", err)
