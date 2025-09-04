@@ -66,10 +66,13 @@ func (s *AuthService) Login(ctx *saiTypes.RequestCtx, req *models.LoginRequest) 
 				return nil, fmt.Errorf("failed to compile permissions: %w", err)
 			}
 			existingToken.CompiledPermissions = permissions
-			err = s.tokenRepo.Update(ctx, existingToken)
-			if err != nil {
-				return nil, fmt.Errorf("failed to update token: %w", err)
-			}
+		}
+		
+		existingToken.ExpiresAt = time.Now().Add(s.config.AccessTokenTTL).UnixNano()
+		existingToken.RefreshExpiresAt = time.Now().Add(s.config.RefreshTokenTTL).UnixNano()
+		err = s.tokenRepo.Update(ctx, existingToken)
+		if err != nil {
+			return nil, fmt.Errorf("failed to update token: %w", err)
 		}
 		
 		user.PasswordHash = ""
