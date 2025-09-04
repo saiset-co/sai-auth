@@ -58,6 +58,32 @@ func (s *AuthService) Login(ctx *saiTypes.RequestCtx, req *models.LoginRequest) 
 		return nil, fmt.Errorf("user has no roles assigned")
 	}
 
+	existingToken, err := s.tokenRepo.GetByUserID(ctx, user.InternalID)
+	if err == nil && existingToken != nil && existingToken.ExpiresAt > time.Now().UnixNano() {
+		if req.Renew {
+			permissions, err := s.permissionSvc.CompilePermissions(ctx, user)
+			if err != nil {
+				return nil, fmt.Errorf("failed to compile permissions: %w", err)
+			}
+			existingToken.CompiledPermissions = permissions
+			err = s.tokenRepo.Update(ctx, existingToken)
+			if err != nil {
+				return nil, fmt.Errorf("failed to update token: %w", err)
+			}
+		}
+		
+		user.PasswordHash = ""
+		return &models.AuthResponse{
+			User: user,
+			Tokens: &models.TokenResponse{
+				AccessToken:  existingToken.AccessToken,
+				RefreshToken: existingToken.RefreshToken,
+				ExpiresIn:    (existingToken.ExpiresAt - time.Now().UnixNano()) / int64(time.Second),
+			},
+			Permissions: existingToken.CompiledPermissions,
+		}, nil
+	}
+
 	s.tokenRepo.DeleteByUserID(ctx, user.InternalID)
 
 	permissions, err := s.permissionSvc.CompilePermissions(ctx, user)
