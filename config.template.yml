@@ -13,6 +13,9 @@ auth_providers:
   sai-auth:
     params:
       auth_service_url: "${AUTH_SERVICE_URL}"
+  token:
+    params:
+      token: "${TOKEN}"
   basic:
     params:
       username: "${BASIC_USER}"
@@ -39,6 +42,7 @@ clients:
         payload:
           username: "${STORAGE_USERNAME}"
           password: "${STORAGE_PASSWORD}"
+          token: "${STORAGE_TOKEN}"
 
 logger:
   level: "${LOG_LEVEL}"
