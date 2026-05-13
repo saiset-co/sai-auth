@@ -5,6 +5,7 @@ import (
 	"github.com/saiset-co/sai-auth/pkg/providers"
 	"log"
 
+	adminPanel "github.com/saiset-co/sai-auth/internal"
 	"github.com/saiset-co/sai-auth/internal/handlers"
 	"github.com/saiset-co/sai-auth/internal/repository"
 	"github.com/saiset-co/sai-auth/internal/service"
@@ -99,6 +100,8 @@ func main() {
 		WithDoc("Get Role Permissions", "Get compiled role permissions", "Roles", nil, nil)
 	roleGroup.POST("/permissions", authHandler.TestPermissions).
 		WithDoc("Test Permissions", "Test user permissions", "Roles", nil, nil)
+
+	adminPanel.SetupAdmin(userSvc, roleSvc, tokenRepo)
 
 	if err := srv.Start(); err != nil {
 		log.Fatal("Failed to start service:", err)
