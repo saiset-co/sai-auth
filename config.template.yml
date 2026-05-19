@@ -18,8 +18,8 @@ auth_providers:
       token: "${TOKEN}"
   basic:
     params:
-      username: "${BASIC_USER}"
-      password: "${BASIC_PASS}"
+      username: "${USERNAME}"
+      password: "${PASSWORD}"
 
 sai-auth:
   access_token_ttl: "${ACCESS_TOKEN_TTL}"
