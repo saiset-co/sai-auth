@@ -22,6 +22,8 @@ type AdminPanel struct {
 }
 
 func SetupAdmin(userSvc *service.UserService, roleSvc *service.RoleService, tokenRepo repository.TokenRepository) {
+	sai.InstallLogBuffer()
+
 	panel := &AdminPanel{
 		userSvc:   userSvc,
 		roleSvc:   roleSvc,
@@ -39,6 +41,7 @@ func SetupAdmin(userSvc *service.UserService, roleSvc *service.RoleService, toke
 	adminGroup.POST("/roles/update", panel.handleUpdateRole)
 	adminGroup.POST("/roles/delete", panel.handleDeleteRole)
 	adminGroup.POST("/tokens/delete", panel.handleDeleteToken)
+	adminGroup.GET("/ajax/service-logs", panel.handleAjaxServiceLogs)
 
 	sai.Admin(adminGroup).
 		WithTitle("SAI Auth Admin").
@@ -53,6 +56,8 @@ func SetupAdmin(userSvc *service.UserService, roleSvc *service.RoleService, toke
 		Page("users", "Пользователи", func(ctx *saiTypes.RequestCtx) (*admin.PageData, error) {
 			return panel.buildUsersPage(ctx)
 		}).
+		Group("Логи").
+		Page("service-logs", "Сервис", panel.pageServiceLogs).
 		Mount()
 }
 
