@@ -6,7 +6,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/pkg/errors v0.9.1
 	github.com/redis/go-redis/v9 v9.11.0
-	github.com/saiset-co/sai-service v1.1.19
+	github.com/saiset-co/sai-service v1.1.20
 	github.com/valyala/fasthttp v1.64.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.40.0
